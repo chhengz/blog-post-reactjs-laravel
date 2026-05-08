@@ -1,0 +1,78 @@
+version: "3.9"
+
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: laravel-app
+    container_name: laravel-app
+    restart: unless-stopped
+    volumes:
+      - ./server:/var/www/html
+    depends_on:
+      - mysql
+    networks:
+      - appnet
+
+  nginx:
+    image: nginx:latest
+    container_name: laravel-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./server:/var/www/html
+      - ./server/docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - server
+    networks:
+      - appnet
+
+  mysql:
+    image: mysql:8
+    container_name: laravel-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: laravel
+    ports:
+      - "3307:3306"
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+      - dbdata:/var/lib/mysql
+    networks:
+      - appnet
+
+  redis:
+    image: redis:alpine
+    container_name: laravel-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - appnet
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    image: react-client
+    container_name: react-client
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0 --port 5173
+    networks:
+      - appnet
+
+networks:
+  appnet:
+
+volumes:
+  dbdata:
